@@ -1,0 +1,22 @@
+[package]
+name = "churchprojection-studio"
+version = "1.0.12"
+description = "Offline worship projection for churches"
+authors = ["ChurchProjection Studio"]
+edition = "2021"
+
+[lib]
+name = "churchprojection_studio_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
+chrono = "0.4"
+thiserror = "2"

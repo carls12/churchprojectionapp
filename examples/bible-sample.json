@@ -1,0 +1,19 @@
+{
+  "name": "Sample Public Domain Bible",
+  "abbreviation": "SAMPLE",
+  "language": "English",
+  "books": [
+    {
+      "name": "John",
+      "abbreviation": "Jn",
+      "number": 43,
+      "chapters": [
+        [
+          "In the beginning was the Word, and the Word was with God, and the Word was God.",
+          "The same was in the beginning with God.",
+          "All things were made by him; and without him was not any thing made that was made."
+        ]
+      ]
+    }
+  ]
+}
