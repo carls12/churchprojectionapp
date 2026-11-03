@@ -1,0 +1,35 @@
+# Builds ChurchProjection Studio on Windows for every push and pull request:
+# type check, Rust unit tests and the NSIS installer (downloadable under the run's "Artifacts").
+name: Build Windows app
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: npm ci
+      - name: Type check and frontend build
+        run: npm run build
+      - name: Rust tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+      - name: Windows installer
+        run: npx tauri build --bundles nsis
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ChurchProjection-Studio-setup
+          path: src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error
