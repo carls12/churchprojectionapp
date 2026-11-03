@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { emitTo, listen } from "@tauri-apps/api/event";
+import { listen } from "@tauri-apps/api/event";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { AlignCenter, AlignLeft, AlignRight, BookOpen, ChevronLeft, ChevronRight, CircleStop, Database, Expand, FileDown, FileUp, Gauge, Image, Languages, Library, Maximize2, MonitorUp, Music2, Plus, Presentation, Save, Search, Settings, Square, Trash2, Upload, X } from "lucide-react";
 import { api } from "./api";
@@ -19,17 +19,12 @@ export default function App() {
   const withBackground = useCallback((slide: ProjectionSlide, mediaId?: number | null) => ({ ...slide, media: media.find(m => m.id === mediaId) || media.find(m => m.id === settings.defaultMediaId) || media.find(m => m.isDefault) }), [media, settings.defaultMediaId]);
   const load = useCallback(async () => { try { const [s,v,m,st,cfg]=await Promise.all([api.songs(),api.versions(),api.media(),api.stats(),api.settings()]);setSongs(s);setVersions(v);setMedia(m);setStats(st);setSettings(cfg); } catch(e) { setNotice(String(e)); } }, []);
   useEffect(() => { let unlisten:(()=>void)|undefined;load();const first=window.setTimeout(load,500);const second=window.setTimeout(load,1500);listen("database:ready",load).then(fn=>{unlisten=fn});return()=>{window.clearTimeout(first);window.clearTimeout(second);unlisten?.()} }, [load]);
-  useEffect(() => { const payload: ProjectionPayload={slide:withBackground(active),settings,clear};api.publishProjection(payload).catch(()=>{});emitTo("projection","projection:update",payload).catch(()=>{}); }, [active,settings,clear,withBackground]);
-  useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    listen("projection:ready", () => emitTo("projection", "projection:update", { slide: withBackground(active), settings, clear } satisfies ProjectionPayload)).then(fn => { unlisten = fn; });
-    return () => unlisten?.();
-  }, [active, settings, clear, withBackground]);
+  useEffect(() => { const payload: ProjectionPayload={slide:withBackground(active),settings,clear};api.publishProjection(payload).catch(()=>{}); }, [active,settings,clear,withBackground]);
   useEffect(() => { const key=(e:KeyboardEvent)=>{if(e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement)return;if(e.key==="ArrowRight")setIndex(i=>Math.min(queue.length-1,i+1));if(e.key==="ArrowLeft")setIndex(i=>Math.max(0,i-1));if(e.key.toLowerCase()==="b")blank();if(e.key==="Escape")setClear(true)};addEventListener("keydown",key);return()=>removeEventListener("keydown",key)},[queue.length]);
   const flash=(msg:string)=>{setNotice(msg);setTimeout(()=>setNotice(""),3500)};
   const play=(slides:ProjectionSlide[], mediaId?:number|null, startAt=0)=>{const list=slides.map(s=>withBackground(s,mediaId));setQueue(list);setIndex(Math.max(0,Math.min(startAt,list.length-1)));setClear(false);setPage("projection")};
   const blank=()=>{setQueue([{kind:"blank",title:"",lines:[]}]);setIndex(0);setClear(false)};
-  const openProjection=async()=>{try{if(active.kind==="blank"){setQueue([withBackground(logoSlide)]);setIndex(0)}setClear(false);await api.openProjection()}catch(e){flash(String(e))}};
+  const openProjection=async()=>{try{if(active.kind==="blank"){setQueue([withBackground(logoSlide)]);setIndex(0)}setClear(false);const second=await api.openProjection();flash(second?"Display opened full screen on the second screen.":"Only one screen found: drag the display window to the projector, then choose Fullscreen.")}catch(e){flash(String(e))}};
   const ctx={songs,versions,media,stats,settings,setSettings,load,flash,play};
   return <div className="flex h-screen overflow-hidden bg-[radial-gradient(circle_at_70%_0%,rgba(44,64,108,.2),transparent_35%)]">
     <aside className="flex w-64 shrink-0 flex-col border-r bg-[#0a101c]/95 p-4"><div className="mb-8 flex items-center gap-3 px-2 pt-2"><div className="grid h-11 w-11 place-items-center rounded-xl bg-gold text-slate-950 shadow-glow"><Presentation size={24}/></div><div><div className="font-bold leading-tight">ChurchProjection</div><div className="text-xs tracking-[.24em] text-gold">STUDIO</div></div></div><nav className="space-y-1">{nav.map(([id,label,Icon])=><button key={id} onClick={()=>setPage(id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition ${page===id?"bg-gold/10 text-amber-200":"text-slate-400 hover:bg-slate-800/70 hover:text-white"}`}><Icon size={19}/>{label}</button>)}</nav><div className="mt-auto rounded-xl border bg-slate-900/70 p-3"><div className="mb-2 flex items-center gap-2 text-xs font-semibold text-emerald-300"><span className="h-2 w-2 rounded-full bg-emerald-400"/>OFFLINE READY</div><p className="text-[11px] leading-relaxed text-slate-500">All content and media stays on this computer.</p></div></aside>

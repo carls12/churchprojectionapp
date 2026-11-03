@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { emitTo, listen } from "@tauri-apps/api/event";
+import { listen } from "@tauri-apps/api/event";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import type { ProjectionPayload } from "./types";
 import { api } from "./api";
@@ -9,22 +9,21 @@ export default function ProjectionWindow() {
   const [payload, setPayload] = useState(defaults);
   const [visible, setVisible] = useState(true);
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    listen<ProjectionPayload>("projection:update", e => { setVisible(false); window.setTimeout(() => { setPayload(e.payload); setVisible(true); }, Math.min(e.payload.settings.transitionMs / 2, 220)); invoke("report_projection_status", { title: e.payload.slide.title }).catch(() => {}); }).then(fn => {
-      unlisten = fn;
-      emitTo("main", "projection:ready").catch(() => {});
-    });
-    return () => unlisten?.();
-  }, []);
-  useEffect(() => {
     let disposed = false;
-    const sync = async () => {
-      try { const current = await api.projectionState(); if (!disposed && current) setPayload(current); }
-      catch { /* The event path remains available during startup. */ }
-    };
-    sync();
-    const timer = window.setInterval(sync, 300);
-    return () => { disposed = true; window.clearInterval(timer); };
+    let unlisten: (() => void) | undefined;
+    let fade: number | undefined;
+    listen<ProjectionPayload>("projection:update", e => {
+      window.clearTimeout(fade);
+      setVisible(false);
+      fade = window.setTimeout(() => { setPayload(e.payload); setVisible(true); }, Math.min(e.payload.settings.transitionMs / 2, 220));
+      invoke("report_projection_status", { title: e.payload.slide.title }).catch(() => {});
+    }).then(fn => {
+      if (disposed) { fn(); return; }
+      unlisten = fn;
+      // Listening first, then reading the current slide: nothing published in between is lost.
+      api.projectionState().then(current => { if (!disposed && current) setPayload(current); }).catch(() => {});
+    });
+    return () => { disposed = true; window.clearTimeout(fade); unlisten?.(); };
   }, []);
   const { slide, settings, clear } = payload;
   const mediaUrl = slide.media ? convertFileSrc(slide.media.path) : "";
